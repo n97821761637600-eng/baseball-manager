@@ -30,6 +30,7 @@ jobs:
           from pathlib import Path
           import re, base64, gzip
 
+          # Keep the existing completed site at the root URL exactly as before.
           src = Path("index.html").read_text(encoding="utf-8")
           m = re.search(r'atob\("([A-Za-z0-9+/=]+)"\)', src)
           if not m:
@@ -53,7 +54,24 @@ jobs:
           out = Path("_site")
           out.mkdir(exist_ok=True)
           (out / "index.html").write_bytes(html_bytes)
-          print("Built browser-compatible site:", len(html_bytes), "bytes")
+          print("Built existing root site:", len(html_bytes), "bytes")
+
+          # Build v3.7 independently under /v37/ so the existing site is not overwritten.
+          v37_payload = "".join(
+              Path(f"v37_payload_{i}.txt").read_text(encoding="utf-8").strip()
+              for i in range(1, 7)
+          )
+          if len(v37_payload) != 53564:
+              raise SystemExit(f"Unexpected v3.7 payload length: {len(v37_payload)}")
+
+          v37_html = gzip.decompress(base64.b64decode(v37_payload))
+          if len(v37_html) != 141011:
+              raise SystemExit(f"Unexpected v3.7 HTML size: {len(v37_html)}")
+
+          v37_dir = out / "v37"
+          v37_dir.mkdir(parents=True, exist_ok=True)
+          (v37_dir / "index.html").write_bytes(v37_html)
+          print("Built v3.7 site:", len(v37_html), "bytes")
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
