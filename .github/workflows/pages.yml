@@ -24,15 +24,45 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Inspect embedded payload
+      - name: Build browser-compatible site
         shell: python
         run: |
           from pathlib import Path
-          import re
+          import re, base64, gzip
+
           src = Path("index.html").read_text(encoding="utf-8")
           m = re.search(r'atob\("([A-Za-z0-9+/=]+)"\)', src)
           if not m:
               raise SystemExit("Embedded game payload not found")
-          print("PAYLOAD_LENGTH=" + str(len(m.group(1))))
-          print("PAYLOAD_END=" + m.group(1)[-80:])
-          raise SystemExit("Inspection complete")
+
+          broken = m.group(1)
+          prefix = broken[:-4]
+          tail = (
+              Path("payload_tail_1.txt").read_text(encoding="utf-8").strip()
+              + Path("payload_tail_2.txt").read_text(encoding="utf-8").strip()
+              + Path("payload_tail_3.txt").read_text(encoding="utf-8").strip()
+          )
+          payload = prefix + tail
+          if len(payload) != 50708:
+              raise SystemExit(f"Unexpected payload length: {len(payload)}")
+
+          html_bytes = gzip.decompress(base64.b64decode(payload))
+          if len(html_bytes) != 133619:
+              raise SystemExit(f"Unexpected HTML size: {len(html_bytes)}")
+
+          out = Path("_site")
+          out.mkdir(exist_ok=True)
+          (out / "index.html").write_bytes(html_bytes)
+          print("Built browser-compatible site:", len(html_bytes), "bytes")
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: '_site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
