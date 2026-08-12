@@ -68,10 +68,19 @@ jobs:
           if len(v37_html) != 141011:
               raise SystemExit(f"Unexpected v3.7 HTML size: {len(v37_html)}")
 
+          # Same GitHub Pages origin shares localStorage across paths, so give v3.7
+          # its own save key while leaving the original site's save untouched.
+          old_key = b"baseballCoachV1"
+          new_key = b"baseballCoachV7"
+          occurrences = v37_html.count(old_key)
+          if occurrences != 3:
+              raise SystemExit(f"Unexpected save-key occurrence count: {occurrences}")
+          v37_html = v37_html.replace(old_key, new_key)
+
           v37_dir = out / "v37"
           v37_dir.mkdir(parents=True, exist_ok=True)
           (v37_dir / "index.html").write_bytes(v37_html)
-          print("Built v3.7 site:", len(v37_html), "bytes")
+          print("Built v3.7 site with isolated saves:", len(v37_html), "bytes")
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
