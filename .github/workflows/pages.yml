@@ -82,6 +82,31 @@ jobs:
           (v37_dir / "index.html").write_bytes(v37_html)
           print("Built v3.7 site with isolated saves:", len(v37_html), "bytes")
 
+          # Build v3.9 independently under /v39/. The root and /v37/ sites stay unchanged.
+          v39_payload = "".join(
+              Path(f"v39_payload_{i}.txt").read_text(encoding="utf-8").strip()
+              for i in range(1, 8)
+          )
+          if len(v39_payload) != 54420:
+              raise SystemExit(f"Unexpected v3.9 payload length: {len(v39_payload)}")
+
+          v39_html = gzip.decompress(base64.b64decode(v39_payload))
+          if len(v39_html) != 142659:
+              raise SystemExit(f"Unexpected v3.9 HTML size: {len(v39_html)}")
+
+          # Isolate v3.9 saves from both older sites on this same Pages origin.
+          old_key = b"baseballCoachV1"
+          new_key = b"baseballCoachV9"
+          occurrences = v39_html.count(old_key)
+          if occurrences != 3:
+              raise SystemExit(f"Unexpected v3.9 save-key occurrence count: {occurrences}")
+          v39_html = v39_html.replace(old_key, new_key)
+
+          v39_dir = out / "v39"
+          v39_dir.mkdir(parents=True, exist_ok=True)
+          (v39_dir / "index.html").write_bytes(v39_html)
+          print("Built v3.9 site with isolated saves:", len(v39_html), "bytes")
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
