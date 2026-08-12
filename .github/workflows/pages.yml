@@ -23,14 +23,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Build browser-compatible site
+        shell: python
+        run: |
+          from pathlib import Path
+          import re, base64, gzip
+
+          src = Path("index.html").read_text(encoding="utf-8")
+          m = re.search(r'atob\("([A-Za-z0-9+/=]+)"\)', src)
+          if not m:
+              raise SystemExit("Embedded game payload not found")
+
+          html = gzip.decompress(base64.b64decode(m.group(1))).decode("utf-8")
+          out = Path("_site")
+          out.mkdir(exist_ok=True)
+          (out / "index.html").write_text(html, encoding="utf-8")
+          print(f"Built {(out / 'index.html').stat().st_size} bytes")
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
-        with:
-          enablement: true
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: '.'
+          path: '_site'
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
