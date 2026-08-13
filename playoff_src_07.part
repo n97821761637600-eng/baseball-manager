@@ -1,0 +1,74 @@
+// STATIC PLAY OFF V2.1 JAVASCRIPT SOURCE PART 07. NO CREDENTIALS, TOKENS, AUTH KEYS, OR USER SAVE DATA. BUILD SCRIPT REMOVES THIS HEADER.
+  function seriesLabelCurrent(){return state.stage==='usa'?'冠軍系列賽':'晉級系列賽'}
+  function seriesSummaryText(stage){
+    const r=state.series[stage], opp=stage==='japan'?'日本隊':'美國隊';
+    return `${stage==='japan'?'5戰3勝':'7戰4勝'}｜${playerTeam().name} ${r.player}：${r.opp} ${opp}`;
+  }
+  function seriesStageHtml(stage){
+    const isJapan=stage==='japan',r=state.series[stage],opp=isJapan?getTeam(state.japanId):getTeam(state.usaId),need=isJapan?3:4,max=isJapan?5:7;
+    const reached=r.player>=need, lost=r.opp>=need, active=state.stage===stage&&!state.eliminated&&!state.champion;
+    const locked=stage==='usa'&&state.stage==='japan';
+    let games='';
+    for(let i=1;i<=max;i++){
+      const g=r.games[i-1];let cls='unplayed',score='—';
+      if(g){const won=g.playerScore>g.oppScore;cls=won?'win':'loss';score=`${g.playerScore}-${g.oppScore}`}
+      else if(active&&i===r.games.length+1){cls='next';score='NEXT'}
+      games+=`<div class="miniGame ${cls}"><div class="g">G${i}</div><div class="s">${score}</div></div>`;
+    }
+    const trophy=reached?`<span class="stageTrophy ${isJapan?'small':'big'}">🏆</span>`:'';
+    const status=locked?'等待晉級':reached?(isJapan?'出線！':'世界冠軍！'):lost?'系列賽止步':active?'進行中':'尚未開始';
+    return `<div class="seriesStage ${active?'active':''} ${locked?'locked':''} ${reached?'cleared':''}">
+      <div class="stageEyebrow">${isJapan?'ROUND 1':'CHAMPIONSHIP'}</div>
+      <div class="stageTitle"><div><h2>${isJapan?'🇯🇵 日本隊':'🇺🇸 美國隊'}</h2><div class="seriesRule">${isJapan?'5戰3勝｜率先3勝出線':'7戰4勝｜率先4勝奪冠'}</div></div>${trophy}</div>
+      <div class="seriesScoreBig">${r.player} ： ${r.opp}</div><div class="small">${status}</div>
+      <div class="seriesMiniGrid ${isJapan?'five':''}">${games}</div></div>`;
+  }
+  function renderPlayoffRoad(){
+    document.getElementById('playoffRoad').innerHTML=seriesStageHtml('japan')+`<div class="roadArrow">➜</div>`+seriesStageHtml('usa');
+    const b=document.getElementById('championBanner');
+    b.innerHTML=state.champion?`<div class="champBanner"><span class="stageTrophy big">🏆</span><h2>WORLD CHAMPION</h2><div>${esc(playerTeam().name)} 擊敗美國隊，奪得最後冠軍！</div></div>`:'';
+  }
+  function renderPlayoffHistory(){
+    const box=document.getElementById('playoffHistory');if(!box)return;
+    const games=state.history.slice().reverse().slice(0,12);
+    if(!games.length){box.innerHTML='<div class="muted">尚未進行任何季後賽比賽。</div>';return}
+    box.innerHTML=games.map(g=>{
+      const a=getTeam(g.a),b=getTeam(g.b),result=resultForTeam(g,state.playerId),series=g.playoffStage==='usa'?'🇺🇸 冠軍系列賽':'🇯🇵 晉級系列賽';
+      return `<button class="gameChip playerGame clickGame" onclick="window.__reviewGame(${g.id})"><span><b>${series} G${g.seriesGameNo||1}</b>　${esc(a?.name||'')} vs ${esc(b?.name||'')}　<span class="small">${result}</span></span><span class="score">${g.scoreA}-${g.scoreB}</span></button>`;
+    }).join('');
+  }
+
+  function renderLobby(){
+    const t=playerTeam();
+    document.getElementById('lobbyTeamName').textContent=t.name;
+    document.getElementById('lobbyCrest').textContent=t.logo||LOGOS[0];
+    document.getElementById('lobbyManagerName').textContent='監督：'+teamManagerName(t);
+    const next=nextGameForPlayer();const n=document.getElementById('nextGameInfo');
+    if(state.champion)n.innerHTML=`<b>🏆 世界冠軍！</b>　${esc(t.name)} 已完成全部季後賽。`;
+    else if(state.eliminated)n.innerHTML=`<b>季後賽結束</b>　${esc(t.name)} 本次挑戰止步於${state.stage==='japan'?'日本系列賽':'美國系列賽'}。`;
+    else if(next){const opp=nextOpponent();n.innerHTML=`<b>${seriesLabelCurrent()} G${next.gameNo}</b>　${next.playerHome?'主場':'客場'}對戰 ${teamCrest(opp)}${esc(opp.name)}　目前系列賽 ${seriesRecordObj().player}：${seriesRecordObj().opp}`}
+    renderPlayoffRoad();renderPlayoffHistory();
+  }
+
+  function ratingRefs(team){
+    const a=[];team.hitters.forEach(p=>[['power','力量'],['contact','打擊'],['speed','速度'],['defense','守備']].forEach(x=>a.push({p,key:x[0],label:x[1]})));
+    team.pitchers.forEach(p=>[['velocity','球速'],['breaking','變化球'],['control','控球'],['stamina','體力']].forEach(x=>a.push({p,key:x[0],label:x[1]})));
+    return a
+  }
+  function ratingTotal(team){return ratingRefs(team).reduce((s,x)=>s+Number(x.p[x.key]||0),0)}
+  function capCounts(team){const c={8:0,9:0,10:0};ratingRefs(team).forEach(x=>{const v=Number(x.p[x.key]||0);if(v>=8)c[v]=(c[v]||0)+1});return c}
+  function isValidRoster(team){
+    if(ratingTotal(team)!==ABILITY_BUDGET)return false;const c=capCounts(team);if((c[10]||0)>2||(c[9]||0)>7||(c[8]||0)>15)return false;
+    if(team.hitters.some(p=>p.contact<=5||p.defense<=4))return false;
+    if(team.pitchers.some(p=>p.control<=5))return false;
+    if(team.pitchers.filter(p=>p.role==='SP').some(p=>p.stamina<5))return false;
+    if(team.pitchers.filter(p=>p.role==='RP').some(p=>p.stamina>3))return false;
+    if(team.pitchers.filter(p=>p.role==='CL').some(p=>p.stamina>2))return false;
+    return true
+  }
+  function isAllFiveRoster(team){return ratingRefs(team).every(x=>Number(x.p[x.key]||0)===5)}
+  function rosterDifficultyMode(team){
+    if(isAllFiveRoster(team))return'default5';
+    if(state.autoAllocationOnly&&!state.manualAllocationTouched)return'auto';
+    return'normal';
+  }
