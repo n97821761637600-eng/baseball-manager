@@ -68,8 +68,6 @@ jobs:
           if len(v37_html) != 141011:
               raise SystemExit(f"Unexpected v3.7 HTML size: {len(v37_html)}")
 
-          # Same GitHub Pages origin shares localStorage across paths, so give v3.7
-          # its own save key while leaving the original site's save untouched.
           old_key = b"baseballCoachV1"
           new_key = b"baseballCoachV7"
           occurrences = v37_html.count(old_key)
@@ -94,7 +92,6 @@ jobs:
           if len(v39_html) != 142659:
               raise SystemExit(f"Unexpected v3.9 HTML size: {len(v39_html)}")
 
-          # Isolate v3.9 saves from both older sites on this same Pages origin.
           old_key = b"baseballCoachV1"
           new_key = b"baseballCoachV9"
           occurrences = v39_html.count(old_key)
@@ -106,6 +103,30 @@ jobs:
           v39_dir.mkdir(parents=True, exist_ok=True)
           (v39_dir / "index.html").write_bytes(v39_html)
           print("Built v3.9 site with isolated saves:", len(v39_html), "bytes")
+
+          # Build v3.12 independently under /happyleague/. Existing sites stay unchanged.
+          v312_payload = "".join(
+              Path(f"v312_payload_{i}.txt").read_text(encoding="utf-8").strip()
+              for i in range(1, 8)
+          )
+          if len(v312_payload) != 56096:
+              raise SystemExit(f"Unexpected v3.12 payload length: {len(v312_payload)}")
+
+          v312_html = gzip.decompress(base64.b64decode(v312_payload))
+          if len(v312_html) != 147196:
+              raise SystemExit(f"Unexpected v3.12 HTML size: {len(v312_html)}")
+
+          old_key = b"baseballCoachV1"
+          new_key = b"baseballCoachV312"
+          occurrences = v312_html.count(old_key)
+          if occurrences != 3:
+              raise SystemExit(f"Unexpected v3.12 save-key occurrence count: {occurrences}")
+          v312_html = v312_html.replace(old_key, new_key)
+
+          v312_dir = out / "happyleague"
+          v312_dir.mkdir(parents=True, exist_ok=True)
+          (v312_dir / "index.html").write_bytes(v312_html)
+          print("Built v3.12 happyleague site with isolated saves:", len(v312_html), "bytes")
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
