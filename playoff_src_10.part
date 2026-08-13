@@ -1,0 +1,72 @@
+// STATIC PLAY OFF V2.1 JAVASCRIPT SOURCE PART 10. NO CREDENTIALS, TOKENS, AUTH KEYS, OR USER SAVE DATA. BUILD SCRIPT REMOVES THIS HEADER.
+  function renderPitcherTable(){
+    const t=playerTeam(),tb=document.querySelector('#pitcherTable tbody'),sp=todayStarter(t);const baseEra=leaguePitchBaseline();
+    const total=t.pitchers.reduce((a,p)=>{const s=p.stats;a.W+=s.W;a.L+=s.L;a.SV+=s.SV;a.outs+=s.outs;a.H+=s.H;a.BB+=s.BB;a.HR+=s.HR;a.ER+=s.ER;a.MVP+=s.MVP||0;return a},{W:0,L:0,SV:0,outs:0,H:0,BB:0,HR:0,ER:0,MVP:0});
+    tb.innerHTML=t.pitchers.map(p=>{
+      const s=p.stats;return `<tr class="${p.id===sp?.id?'nextStarterRow':''}"><td>${p.role}${p.id===sp?.id?' <span class="miniTag">下一場</span>':''}</td><td class="left">${nameInputHtml(p)}</td><td>${ratingSelect(p.id,'velocity',p.velocity)}</td><td>${ratingSelect(p.id,'breaking',p.breaking)}</td><td>${ratingSelect(p.id,'control',p.control)}</td><td>${ratingSelect(p.id,'stamina',p.stamina)}</td><td>${s.W}-${s.L}</td><td>${fmtERA(s)}</td><td>${eraPlusValue(s,baseEra)??'—'}</td><td>${fmtWHIP(s)}</td><td>${fmtIP(s.outs)}</td><td>${s.H}</td><td>${s.BB}</td><td>${s.HR}</td><td>${s.SV}</td><td class="mvpBadge">${s.MVP||0}</td></tr>`
+    }).join('')+`<tr class="totalRow"><td colspan="6" class="left">投手群合計</td><td>${total.W}-${total.L}</td><td>${fmtERA(total)}</td><td>${eraPlusValue(total,baseEra)??'—'}</td><td>${fmtWHIP(total)}</td><td>${fmtIP(total.outs)}</td><td>${total.H}</td><td>${total.BB}</td><td>${total.HR}</td><td>${total.SV}</td><td class="mvpBadge">${total.MVP}</td></tr>`;
+  }
+
+  function bindStrategyControls(){
+    const t=playerTeam();
+    [['approachStrategy','approach'],['tacticsStrategy','tactics'],['stealStrategy','steal'],['buntStrategy','bunt'],['hookStrategy','hook']].forEach(([id,k])=>{
+      const el=document.getElementById(id);el.value=t.strategy[k];el.onchange=()=>{t.strategy[k]=el.value;save()}
+    })
+  }
+
+  function autoAllocate(){
+    const t=playerTeam();
+    if(!registerRespec()){toast('季後賽配點調整次數已用完');return}
+    defaultAutoAllocate(t);state.autoAllocationOnly=true;state.manualAllocationTouched=false;save();renderTeam();toast('已完成系統配點（季後賽難度模式）')
+  }
+
+  function teamDifficultyEdge(opp){
+    const mode=rosterDifficultyMode(playerTeam());
+    if(mode==='default5')return -0.35;
+    if(mode==='auto')return -0.12;
+    return state.stage==='usa'?PLAYOFF_PLAYER_HIT_EDGE.usa:PLAYOFF_PLAYER_HIT_EDGE.japan;
+  }
+  function forcedPlayerWinMode(){
+    const mode=rosterDifficultyMode(playerTeam());
+    if(mode==='default5')return 0;
+    if(mode==='auto')return .15;
+    return state.stage==='usa'?0.3788:0.5537;
+  }
+
+  function shouldForceOutcome(){return !state.eliminated&&!state.champion&&nextGameForPlayer()}
+  function forceFinalWinner(res,wantPlayerWin){
+    const pa=res.a===state.playerId,scoreP=pa?res.scoreA:res.scoreB,scoreO=pa?res.scoreB:res.scoreA;
+    if(wantPlayerWin&&scoreP<=scoreO){if(pa)res.scoreA=res.scoreB+1;else res.scoreB=res.scoreA+1}
+    if(!wantPlayerWin&&scoreP>=scoreO){if(pa)res.scoreA=res.scoreB-1;else res.scoreB=res.scoreA-1}
+    if(res.scoreA<0)res.scoreA=0;if(res.scoreB<0)res.scoreB=0;
+    res.linesA[res.linesA.length-1]=(res.linesA[res.linesA.length-1]||0)+(pa?(wantPlayerWin?1:0):(!wantPlayerWin?1:0));
+    res.linesB[res.linesB.length-1]=(res.linesB[res.linesB.length-1]||0)+(pa?(!wantPlayerWin?1:0):(wantPlayerWin?1:0));
+    return res
+  }
+  function applyPlayoffOutcomeTarget(res){
+    if(!shouldForceOutcome())return res;
+    const target=forcedPlayerWinMode(),want=rand()<target;
+    const pa=res.a===state.playerId,won=pa?res.scoreA>res.scoreB:res.scoreB>res.scoreA;
+    if(won!==want)forceFinalWinner(res,want);
+    return res
+  }
+
+  function gameParams(a,b){
+    const playerIn=a.id===state.playerId||b.id===state.playerId;const opp=a.id===state.playerId?b:b.id===state.playerId?a:null;
+    const edge=playerIn?teamDifficultyEdge(opp):0;
+    return {playerHitEdge:edge,playerFieldEdge:0,playerPitchEdge:0}
+  }
+
+  function matchupLineup(team){return team.hitters.slice().sort((a,b)=>a.order-b.order)}
+  function currentGameTeamState(team,die,starter){
+    return {team,die,starter,currentPitcher:starter,bullpenUsed:new Set(),pitchUse:{},runs:0,hits:0,errors:0,hr:0,battersFaced:0,scoreByInning:[],batStats:{},pitchStats:{},runCapHits:0,tacticStreak:{hit:0,out:0}}
+  }
+  function ensureGameBatterStat(g,p){if(!g.batStats[p.id])g.batStats[p.id]=blankBatterStats();return g.batStats[p.id]}
+  function ensureGamePitchStat(g,p){if(!g.pitchStats[p.id])g.pitchStats[p.id]=blankPitcherStats();return g.pitchStats[p.id]}
+  function pitchUse(g,p){if(!g.pitchUse[p.id])g.pitchUse[p.id]={pitches:0,runs:0,outs:0};return g.pitchUse[p.id]}
+  function staminaThreshold(p,die){return clamp((Number(p.stamina)||1)*12 + DICE_MOD[die]*8,12,126)}
+  function pitcherEffectiveControl(p,g){return clamp((Number(p.control)||1)+DICE_MOD[g.die]+(g.team.strategy.approach==='control'?.42:0),.5,10.5)}
+  function batterEffectiveContact(p,g){return clamp((Number(p.contact)||1)+DICE_MOD[g.die]+(g.team.strategy.approach==='contact'?.42:0),.5,10.5)}
+  function batterEffectivePower(p,g){return clamp((Number(p.power)||1)+DICE_MOD[g.die]+(g.team.strategy.approach==='power'?.42:0),.5,10.5)}
+  function batterEffectiveSpeed(p,g){return clamp((Number(p.speed)||1)+DICE_MOD[g.die],.5,10.5)}
+  function batterEffectiveDefense(p,g){return clamp((Number(p.defense)||1)+DICE_MOD[g.die]+(g.team.strategy.approach==='defense'?.42:0),.5,10.5)}
