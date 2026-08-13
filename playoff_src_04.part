@@ -1,0 +1,114 @@
+<!-- STATIC PLAY OFF V2.1 HTML SOURCE PART 04. NO CREDENTIALS, TOKENS, AUTH KEYS, OR USER SAVE DATA. BUILD SCRIPT REMOVES THIS HEADER. -->
+<body>
+<div class="wrap">
+  <div class="topBrand"><div><h1>⚾ 歡樂野球小聯盟｜PLAY OFF</h1><div class="tagline">日本隊 5戰3勝 → 美國隊 7戰4勝｜一路挑戰世界冠軍</div></div><span class="small">PLAY OFF v2.1</span></div>
+
+  <div id="lobby" class="view">
+    <section class="panel hero playoffHero">
+      <div class="toolbar spread">
+        <div class="lobbyPrimaryInfo">
+          <div class="lobbyRecordTeamRow">
+            <div class="lobbyTeamIdentity"><div class="lobbyTeamNameCrest"><span id="lobbyTeamName" class="lobbyTeamName">我的球隊</span><span id="lobbyCrest" class="lobbyCrest" aria-hidden="true">🦊</span></div><div id="lobbyManagerName" class="lobbyManagerName">監督：安西教練</div></div>
+          </div>
+        </div>
+        <div class="lobbyTeamSide"><button id="teamBtn">進入個人戰績頁面</button></div>
+      </div>
+      <div id="nextGameInfo" class="pregameBox"></div>
+    </section>
+
+    <section class="panel playoffBoard">
+      <div class="small" style="letter-spacing:.12em;font-weight:900">ROAD TO THE CHAMPIONSHIP</div>
+      <h2>🏟️ 季後賽對戰之路</h2>
+      <div id="playoffRoad" class="playoffRoad"></div>
+      <div id="championBanner"></div>
+    </section>
+    <section class="panel">
+      <div class="toolbar spread"><div><h2 style="margin-bottom:3px">🎙️ 季後賽戰況</h2><div class="small">每一戰都可點擊回顧完整文字轉播。</div></div><button id="openScheduleBtn" class="secondary">🏆 對戰表</button></div>
+      <div id="playoffHistory" class="playoffHistory"></div>
+    </section>
+  </div>
+
+  <div id="team" class="view hidden">
+    <div class="toolbar spread" style="margin-bottom:12px"><button id="backLobbyFromTeam" class="backLink">← 回聯盟主頁</button><div class="toolbar"><button id="teamScheduleBtn" class="secondary">📅 賽程</button><button id="resetBtn" class="bad">重置季後賽</button></div></div>
+
+    <section class="panel">
+      <div class="teamSummaryLayout"><div id="teamSummaryCards" class="metrics"></div><div class="radarCard"><div class="radarTitle"><b>五大能力分布</b><span class="radarLegend">S ＞ A ＞ B ＞ C ＞ D</span></div><div id="teamAbilityRadar"></div></div></div>
+    </section>
+
+    <section class="panel">
+      <h2>🕘 近10場季後賽結果</h2>
+      <div id="teamRecent10" class="teamRecent10"></div>
+    </section>
+
+    <section class="panel">
+      <h2>個人戰績頁面</h2>
+      <div class="small" style="margin-bottom:10px">棒次與守備位置皆使用下拉式選單；若選到已被占用的棒次或守備位置，兩名球員會自動交換。能力值採 1～10 級，季後賽期間可使用有限次數重新調整。力量偏高會增加全壘打與三振；打擊偏高提高安打率但長打占比下降；速度提升三壘打與盜壘；守備過低較容易失誤。 成績欄：2B＝二壘安打、3B＝三壘安打、BB＝保送、DP＝雙殺次數、OBP＝上壘率、SLG＝長打率。</div>
+      <div id="budgetBox" class="cuteBox"></div>
+      <div class="scheduleBtnWrap"><button id="autoAllocateBtn" class="secondary">⚙️ 系統產生配點</button></div>
+      <div class="tableWrap"><table id="hitterTable"><thead><tr><th>棒次</th><th>守備位置</th><th class="left">姓名</th><th>力量</th><th>打擊</th><th>速度</th><th>守備</th><th>E</th><th>AB</th><th>H</th><th>2B</th><th>3B</th><th>RBI</th><th>BB</th><th>SB</th><th>DP</th><th>HR</th><th>AVG</th><th>OBP</th><th>SLG</th><th>OPS</th><th>OPS+</th><th>MVP</th></tr></thead><tbody></tbody></table></div>
+      <h3 style="margin-top:18px">投手輪值</h3>
+      <div class="small" style="margin-bottom:8px">控球影響四壞球與被上壘；體力影響換投時機。投手成績：ERA+ 以聯盟整體 ERA＝100 為基準，數字越高越好；WHIP 為每局平均被安打＋保送。 <span class="miniTag">下一場</span> 代表本場自動輪值先發。</div>
+      <div class="tableWrap"><table id="pitcherTable"><thead><tr><th>角色</th><th class="left">姓名</th><th>球速</th><th>變化球</th><th>控球</th><th>體力</th><th>W-L</th><th>ERA</th><th>ERA+</th><th>WHIP</th><th>IP</th><th>H</th><th>BB</th><th>HR</th><th>SV</th><th>MVP</th></tr></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>賽前教練策略</h2>
+      <div class="strategyGrid">
+        <label>比賽方針<select id="approachStrategy"><option value="contact">提高擊球率</option><option value="balanced">攻守平衡</option><option value="power">追求長打</option><option value="defense">注重防守</option><option value="control">控球至上</option></select></label>
+        <label>打擊策略<select id="tacticsStrategy"><option value="swing">球來就打</option><option value="normal">普通</option><option value="patient">仔細選球</option></select></label>
+        <label>盜壘策略<select id="stealStrategy"><option value="conservative">保守盜壘</option><option value="normal">普通</option><option value="aggressive">積極盜壘</option></select></label>
+        <label>短打戰術<select id="buntStrategy"><option value="conservative">保守短打</option><option value="normal">普通</option><option value="aggressive">積極短打</option></select></label>
+        <label>先發換投<select id="hookStrategy"><option value="early">提早換投</option><option value="normal">普通</option><option value="late">晚一點換</option></select></label>
+      </div>
+      <div class="small">「追求長打」會提高長打比例但三振率略升；「提高擊球率」偏向穩定上壘；「注重防守」會提升團隊守備效率，但進攻略保守；「控球至上」會強化投手控球效果。球員本身的力量／打擊／速度／守備與投手的球速／變化球／控球／體力會依新的能力模型影響模擬。打擊策略中，「球來就打」偏向淺球數出棒，連續安打與全壘打機率提高，但連續出局與三振風險也提高；「仔細選球」會增加耗球數與四壞球機率，但連續安打與全壘打機率降低。盜壘與短打各自由其專屬策略控制。</div>
+      <div class="startArea"><button id="startBtn" class="good xlBtn">開始下一場比賽 ⚾</button></div>
+    </section>
+  </div>
+
+  <div id="game" class="view hidden">
+    <section class="panel">
+      <button id="backLobbyFromGame" class="backLink">← 返回大廳</button>
+      <div id="gameHeader" style="margin-top:14px"></div>
+      <div id="diceBanner" class="diceBanner"></div>
+      <div class="lineups" id="lineups"></div>
+    </section>
+    <section class="panel">
+      <h2>📻 文字轉播 <span id="scoreNow" class="scoreNow"></span></h2>
+      <div id="broadcast" class="broadcast"></div>
+    </section>
+    <section id="result" class="panel result hidden"></section>
+  </div>
+
+  <div id="schedule" class="view hidden">
+    <div class="toolbar spread" style="margin-bottom:12px">
+      <div class="toolbar">
+        <button id="backLobbyFromScheduleTop" class="backLink">← 回聯盟主頁</button>
+        <button id="backTeamFromScheduleTop" class="good">← 返回個人戰績頁面</button>
+      </div>
+    </div>
+    <section class="panel scheduleHero"><div class="small">PLAY OFF BRACKET</div><h2>🏆 季後賽完整對戰表</h2><div class="small">日本隊採5戰3勝；晉級後對美國隊採7戰4勝。已完成賽事可點擊比分回顧文字轉播。</div></section>
+    <section class="panel"><div id="calendarBody"></div></section>
+    <div class="bottomActions"><button id="backLobbyFromSchedule" class="good">返回大廳 →</button></div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+(()=>{
+  'use strict';
+  const REGULAR_GAMES = 0;
+  const HISTORY_LIMIT = 220;
+  const PLAYOFF_SAVE_KEY = 'happyLeaguePlayoffV21';
+  const JAPAN_WINS_NEEDED = 3;
+  const USA_WINS_NEEDED = 4;
+  // 正常配點、平衡策略下的長期目標：日本系列賽晉級約60%；已晉級後對美國奪冠約25%；整體奪冠率約15%。
+  const PLAYOFF_PLAYER_HIT_EDGE = {japan:0.0205, usa:-0.0015};
+  const HITTER_CAPS = {10:2,9:7,8:15};
+  const ABILITY_BUDGET = 360;
+  const RESPEC_LIMIT = 2;
+  // 一般偶發事件基準率；4、6、11維持獨立條件機率，整體長期校準為每場約1.1次偶發事件。
+  const ODDITY_PA_RATE=1/112;
+  const ODDITY_12STRONG_ELIGIBLE_RATE=.02007;
+  const ODDITY_NEYMAR_ELIGIBLE_RATE=.00444;
+  const ODDITY_BUNT3B_ELIGIBLE_RATE=.00590;
+  // 每一季先抽一張「最終名次難度籤」；籤決定難度方向，但不直接鎖死名次。
