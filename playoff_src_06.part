@@ -1,0 +1,100 @@
+// STATIC PLAY OFF V2.1 JAVASCRIPT SOURCE PART 06. NO CREDENTIALS, TOKENS, AUTH KEYS, OR USER SAVE DATA. BUILD SCRIPT REMOVES THIS HEADER.
+  function rebalanceCpuTeam(team,target){
+    const refs=cpuRatingCells(team);let sum=refs.reduce((a,x)=>a+Number(x.p[x.k]||0),0);let guard=0;
+    while(sum!==target && guard++<12000){
+      const dir=sum<target?1:-1;
+      const cand=refs.filter(x=>x.p[x.k]+dir>=1&&x.p[x.k]+dir<=10);
+      if(!cand.length)break;
+      const x=choice(cand);x.p[x.k]+=dir;sum+=dir;
+    }
+  }
+  function resetAllStats(team){team.stats={W:0,L:0,T:0,RF:0,RA:0};team.hitters.forEach(p=>p.stats=blankBatterStats());team.pitchers.forEach(p=>p.stats=blankPitcherStats())}
+
+  function freshState(){
+    const player=mkPlayerTeam();
+    // 國家隊採固定基礎強度，再由季後賽專屬微調校準長期系列賽機率。
+    const japan=makeCpuTeam('日本隊','balanced',0,'standard',3);
+    japan.managerName='高橋監督'; japan.national='JP'; japan.logo=0;
+    ['山田翔太','鈴木悠真','佐藤健太','高橋蓮','中村大輝','小林海斗','伊藤拓真','渡辺颯太','加藤優斗'].forEach((n,i)=>japan.hitters[i].name=n);
+    ['田中大和','山本陸','松本悠斗','井上颯','木村航','森田蓮','清水大輝','石川拓海','藤田翔'].forEach((n,i)=>japan.pitchers[i].name=n);
+    const usa=makeCpuTeam('美國隊','power',1,'standard',3);
+    usa.managerName='Miller'; usa.national='US'; usa.logo=1;
+    ['Mason Reed','Ethan Cole','Ryan Brooks','Caleb Turner','Noah Carter','Luke Bennett','Owen Hayes','Jack Morgan','Dylan Foster'].forEach((n,i)=>usa.hitters[i].name=n);
+    ['Tyler Grant','Logan Price','Connor Blake','Evan Miller','Austin Ward','Cole Parker','Liam Scott','Jake Evans','Nathan Brooks'].forEach((n,i)=>usa.pitchers[i].name=n);
+    rebalanceCpuTeam(japan,350);
+    rebalanceCpuTeam(usa,365);
+    return {
+      version:21,
+      mode:'playoff',
+      teams:[player,japan,usa],playerId:'T0',japanId:'T1',usaId:'T2',
+      gameIndex:0,history:[],postGame:null,
+      stage:'japan',series:{japan:{player:0,opp:0,games:[]},usa:{player:0,opp:0,games:[]}},
+      eliminated:false,champion:false,autoAllocationOnly:false,manualAllocationTouched:false,
+      respecStageGame:-1,
+      schedule:[],
+      finalists:null,finals:{active:false,a:0,b:0,games:[],champion:null,auto:false},
+      seasonChallengeTicket:3,seasonChallengeApplied:true,
+      standingsChallenge:{enabled:false},
+      createdAt:Date.now()
+    };
+  }
+  function seriesRecordObj(){return state.stage==='usa'?state.series.usa:state.series.japan}
+  function playoffOpponent(){return state.stage==='usa'?getTeam(state.usaId):getTeam(state.japanId)}
+  function seriesWinsNeeded(stage=state.stage){return stage==='usa'?USA_WINS_NEEDED:JAPAN_WINS_NEEDED}
+  function seriesMaxGames(stage=state.stage){return stage==='usa'?7:5}
+  function playoffHome(gameNo,stage=state.stage){
+    const pattern=stage==='usa'?[true,true,false,false,false,true,true]:[true,true,false,false,true];
+    return !!pattern[(gameNo-1)%pattern.length];
+  }
+  function playoffSeriesGameNo(){return seriesRecordObj().games.length+1}
+
+  function migrate(s){
+    if(!s||!Array.isArray(s.teams)||!s.teams.length) return freshState();
+    // 舊聯盟版存檔不沿用：季後賽版必須使用完全獨立的新紀錄。
+    if(s.mode!=='playoff'||!s.series||!s.japanId||!s.usaId) return freshState();
+    s.version=21;s.gameIndex=Number(s.gameIndex||0);s.history=Array.isArray(s.history)?s.history:[];
+    s.stage=['japan','usa','done'].includes(s.stage)?s.stage:'japan';
+    s.series=s.series||{};for(const k of ['japan','usa'])s.series[k]=s.series[k]||{player:0,opp:0,games:[]};
+    s.eliminated=!!s.eliminated;s.champion=!!s.champion;s.autoAllocationOnly=!!s.autoAllocationOnly;s.manualAllocationTouched=!!s.manualAllocationTouched;
+    s.teams.forEach((t,idx)=>{
+      if(!t.logo)t.logo=idx===0?LOGOS[0]:(idx===1?'🇯🇵':'🇺🇸');
+      if(!t.managerName)t.managerName=idx===0?'安西教練':(idx===1?'高橋監督':'Miller');
+      t.respecUsed=Number(t.respecUsed||0);t.respecStageGame=Number.isFinite(t.respecStageGame)?t.respecStageGame:-1;
+      t.autoAllocated=!!t.autoAllocated;t.hitters.forEach(p=>p.stats=Object.assign(blankBatterStats(),p.stats||{}));t.pitchers.forEach(p=>p.stats=Object.assign(blankPitcherStats(),p.stats||{}));
+    });
+    return s;
+  }
+
+  let state;
+  try{state=migrate(JSON.parse(localStorage.getItem(PLAYOFF_SAVE_KEY)))}catch(e){state=freshState()}
+  function save(){localStorage.setItem(PLAYOFF_SAVE_KEY,JSON.stringify(state))}
+  function playerTeam(){return state.teams.find(t=>t.id===state.playerId)}
+  function getTeam(id){return state.teams.find(t=>t.id===id)}
+
+  const views=['lobby','team','game','schedule'];
+  function showView(v){
+    views.forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==v));
+    if(v==='lobby')renderLobby();if(v==='team')renderTeam();if(v==='schedule')renderSchedule();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700)}
+
+  function todayStarter(team,rotationIndex=team.rotationIndex){return team.pitchers.filter(p=>p.role==='SP')[rotationIndex%5]}
+  function nextGameForPlayer(){
+    if(state.eliminated||state.champion||state.stage==='done')return null;
+    const opp=playoffOpponent(),no=playoffSeriesGameNo(),home=playoffHome(no);
+    return {day:state.gameIndex,round:state.gameIndex,series:state.stage==='usa'?'finals':'semifinal',a:home?state.playerId:opp.id,b:home?opp.id:state.playerId,playerHome:home,gameNo:no};
+  }
+  function nextOpponent(){const g=nextGameForPlayer();return g?getTeam(g.a===state.playerId?g.b:g.a):null}
+
+  function playerRecord(team){return `${team.stats.W}勝 ${team.stats.T}和 ${team.stats.L}敗`}
+  function teamPct(team){const d=team.stats.W+team.stats.L;return d?(team.stats.W/d).toFixed(3).replace(/^0/,''):'.000'}
+  function recentForTeam(id,n=9){
+    const arr=[];for(let i=state.history.length-1;i>=0&&arr.length<n;i--){const g=state.history[i];if(g.a===id||g.b===id)arr.push(g)}return arr
+  }
+  function resultForTeam(g,id){if(g.scoreA===g.scoreB)return'T';const won=(g.a===id&&g.scoreA>g.scoreB)||(g.b===id&&g.scoreB>g.scoreA);return won?'W':'L'}
+  function scoreForTeam(g,id){return g.a===id?`${g.scoreA}-${g.scoreB}`:`${g.scoreB}-${g.scoreA}`}
+  function opponentName(g,id){return getTeam(g.a===id?g.b:g.a)?.name||'—'}
+  function streakForTeam(id){
+    const arr=recentForTeam(id,200);if(!arr.length)return'—';const first=resultForTeam(arr[0],id);let n=0;for(const g of arr){if(resultForTeam(g,id)===first)n++;else break}return first+n
+  }
