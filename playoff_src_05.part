@@ -1,0 +1,82 @@
+// STATIC PLAY OFF V2.1 JAVASCRIPT SOURCE PART 05. NO CREDENTIALS, TOKENS, AUTH KEYS, OR USER SAVE DATA. BUILD SCRIPT REMOVES THIS HEADER.
+  const SEASON_CHALLENGE_TICKETS = [1,2,3,3,3,3,3,4,4,4,4,5,5,5,6];
+  // 難度籤對五支電腦隊的總點數：中間檔仍接近180，但尾端差距拉大，讓實力低點時更容易停在4～5名、實力高點時較有機會追上前段班。
+  const SEASON_CPU_POINT_OFFSET = {1:-35,2:-5,3:0,4:4,5:20,6:35};
+  // 玩家實力曲線「極差、極佳都小幅收斂」；中段仍稍硬，維持挑戰感。
+  const SEASON_PLAYER_HIT_EDGE = {1:0.008,2:-0.019,3:-0.040,4:-0.016,5:-0.017,6:-0.036};
+  const POSITIONS = ['1B','2B','3B','SS','LF','CF','RF','DH','C'];
+  const LOGOS = ['🦊','🐯','🦁','🐻','🦅','🐬','🐉','🐰','🐺','🦄','🐮','🐨'];
+  const TEAM_DEFAULT_LOGO = {'我的球隊':'🦊','雷霆隊':'🐯','飛鷹隊':'🦅','鯨魚隊':'🐬','騎士隊':'🐉','巨熊隊':'🐻'};
+  const CPU_MANAGER_NAMES = ['林岳川','高志明','陳建宏','吳宗毅','周慶安'];
+  const DICE_MOD = {1:-0.30,2:-0.18,3:-0.06,4:0.06,5:0.18,6:0.30};
+  const approachOptions = ['contact','balanced','power','defense','control'];
+  const approachLabel = {contact:'提高擊球率',balanced:'攻守平衡',power:'追求長打',defense:'注重防守',control:'控球至上'};
+  const tacticsOptions = ['swing','normal','patient'];
+  const tacticsLabel = {swing:'球來就打',normal:'普通',patient:'仔細選球'};
+  const stealOptions = ['conservative','normal','aggressive'];
+  const stealLabel = {conservative:'保守盜壘',normal:'普通',aggressive:'積極盜壘'};
+  const buntOptions = ['conservative','normal','aggressive'];
+  const buntLabel = {conservative:'保守短打',normal:'普通',aggressive:'積極短打'};
+  const hookOptions = ['early','normal','late'];
+  const hookLabel = {early:'提早換投',normal:'普通',late:'晚一點換'};
+
+  function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
+  function rand(){
+    if(window.crypto?.getRandomValues){const x=new Uint32Array(1);crypto.getRandomValues(x);return x[0]/4294967296;}
+    return Math.random();
+  }
+  function roll(){return 1+Math.floor(rand()*6)}
+  function choice(a){return a[Math.floor(rand()*a.length)]}
+  function deep(x){return JSON.parse(JSON.stringify(x))}
+  function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function baseDiagram(bases){
+    const b=Array.isArray(bases)?bases:[false,false,false];
+    return `<span class="baseState" title="壘包"><span class="baseMarker b2 ${b[1]?'on':''}"></span><span class="baseMarker b3 ${b[2]?'on':''}"></span><span class="baseMarker b1 ${b[0]?'on':''}"></span></span>`;
+  }
+  function ordinalN(n){return ['','一','二','三','四','五','六','七','八','九','十','十一','十二'][n]||String(n)}
+  function weekDayOfGame(g){const week=Math.floor(g/6)+1;return {week,day:['二','三','四','五','六','日'][g%6]}}
+  function dayLabel(g){const x=weekDayOfGame(g);return `第${x.week}週 週${x.day}`}
+  function inningLabel(i){return i<=9?`第${ordinalN(i)}局`:i<=12?`延長第${i}局`:`延長第${i}局`}
+  function halfLabel(i,top){return `${inningLabel(i)}${top?'上':'下'}`}
+  function starterNumber(team,pid){const sps=team.pitchers.filter(p=>p.role==='SP');const i=sps.findIndex(p=>p.id===pid);return i>=0?i+1:''}
+  function oddityLabel(type){
+    return ({1:'亂成一鍋粥',2:'A4好球帶',3:'排球高手',4:'打到外野，不如點到三壘',5:'甜甜圈好球帶',6:'我是內馬爾',7:'故意不小心觸身球',8:'恍神',9:'三個和尚沒水喝',10:'火車嘟嘟',11:'12強',12:'跨欄'})[type]||'偶發事件';
+  }
+  function teamCrest(team,big=false){const mark=team?.logo||TEAM_DEFAULT_LOGO[team?.name]||'⚾';return `<span class="crest ${big?'big':''}" aria-hidden="true">${esc(mark)}</span>`}
+  function seriesLabel(s){return s==='finals'?'總冠軍賽':'例行賽'}
+  function teamManagerName(team){return team?.managerName||'—'}
+
+  function blankBatterStats(){return {PA:0,AB:0,H:0,d2:0,d3:0,HR:0,R:0,RBI:0,BB:0,HBP:0,K:0,SF:0,SH:0,SB:0,CS:0,E:0,GDP:0,MVP:0}}
+  function blankPitcherStats(){return {W:0,L:0,SV:0,outs:0,H:0,BB:0,K:0,R:0,ER:0,HR:0,MVP:0}}
+  const FIRST = ['李','王','陳','林','張','黃','吳','劉','蔡','楊','許','鄭','謝','郭','洪','邱','曾','廖','賴','周','江','何','羅','高','簡'];
+  const LAST = ['柏宇','家豪','承恩','冠廷','宗翰','宇翔','建宏','子豪','俊傑','明哲','哲維','威廷','昱廷','彥廷','志豪','祐辰','品睿','政翰','書豪','冠宇','育誠','尚恩','俊賢','弘毅'];
+  function playerName(){return choice(FIRST)+choice(LAST)}
+  function mkHitter(i){return {id:'h'+i,name:playerName(),order:i+1,pos:POSITIONS[i],power:5,contact:5,speed:5,defense:5,stats:blankBatterStats()}}
+  function mkPitcher(i,role){return {id:'p'+i,name:playerName(),role,velocity:5,breaking:5,control:5,stamina:role==='SP'?6:2,stats:blankPitcherStats()}}
+  function mkPlayerTeam(){
+    const hitters=Array.from({length:9},(_,i)=>mkHitter(i));
+    const pitchers=[];for(let i=0;i<5;i++)pitchers.push(mkPitcher(i,'SP'));for(let i=5;i<8;i++)pitchers.push(mkPitcher(i,'RP'));pitchers.push(mkPitcher(8,'CL'));
+    return {id:'T0',name:'我的球隊',logo:LOGOS[0],managerName:'安西教練',isPlayer:true,locked:false,autoAllocated:false,hitters,pitchers,rotationIndex:0,respecUsed:0,respecStageGame:-1,stats:{W:0,L:0,T:0,RF:0,RA:0},strategy:{approach:'balanced',tactics:'normal',steal:'normal',bunt:'normal',hook:'normal'}};
+  }
+  function randomCpuHitter(i){
+    let c=6+Math.floor(rand()*4), p=3+Math.floor(rand()*6), s=3+Math.floor(rand()*6), d=4+Math.floor(rand()*6);
+    return {id:'h'+i,name:playerName(),order:i+1,pos:POSITIONS[i],power:p,contact:c,speed:s,defense:d,stats:blankBatterStats()}
+  }
+  function randomCpuPitcher(i,role){
+    return {id:'p'+i,name:playerName(),role,velocity:4+Math.floor(rand()*6),breaking:4+Math.floor(rand()*6),control:6+Math.floor(rand()*4),stamina:role==='SP'?5+Math.floor(rand()*5):1+Math.floor(rand()*3),stats:blankPitcherStats()}
+  }
+  function makeCpuTeam(name,style,i,challenge='standard',seasonTicket=3){
+    const hitters=Array.from({length:9},(_,j)=>randomCpuHitter(j));
+    const pitchers=[];for(let j=0;j<5;j++)pitchers.push(randomCpuPitcher(j,'SP'));for(let j=5;j<8;j++)pitchers.push(randomCpuPitcher(j,'RP'));pitchers.push(randomCpuPitcher(8,'CL'));
+    const logo=LOGOS[(i+1)%LOGOS.length];
+    const team={id:'T'+(i+1),name,logo,managerName:CPU_MANAGER_NAMES[i]||('CPU監督'+(i+1)),isPlayer:false,locked:true,hitters,pitchers,rotationIndex:Math.floor(rand()*5),stats:{W:0,L:0,T:0,RF:0,RA:0},strategy:{approach:style,tactics:rand()<.4?'aggressive':'normal',steal:rand()<.4?'aggressive':'normal',bunt:rand()<.5?'normal':'conservative',hook:choice(hookOptions)}};
+    if(challenge==='season') rebalanceCpuTeam(team,180+(SEASON_CPU_POINT_OFFSET[seasonTicket]||0));
+    return team;
+  }
+  function sampleSeasonChallengeTicket(){return choice(SEASON_CHALLENGE_TICKETS)}
+  function cpuRatingCells(team){
+    const refs=[];
+    team.hitters.forEach(p=>['power','contact','speed','defense'].forEach(k=>refs.push({p,k})));
+    team.pitchers.forEach(p=>['velocity','breaking','control','stamina'].forEach(k=>refs.push({p,k})));
+    return refs;
+  }
