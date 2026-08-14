@@ -128,6 +128,47 @@ jobs:
           (v312_dir / "index.html").write_bytes(v312_html)
           print("Built v3.12 happyleague site with isolated saves:", len(v312_html), "bytes")
 
+          # Build PLAY OFF v2.1 independently under /playoff/. Existing sites stay unchanged.
+          import hashlib
+          playoff_parts = [
+              "playoff_v21_payload_1.txt",
+              "playoff_v21_payload_2.txt",
+              "playoff_v21_payload_3.txt",
+              "playoff_v21_payload_4.txt",
+              "playoff_v21_payload_5.txt",
+              "playoff_v21_payload_6a1a1.txt",
+              "playoff_v21_payload_6a1a2a.txt",
+              "playoff_v21_payload_6a1a2b.txt",
+              "playoff_v21_payload_6a1b.txt",
+              "playoff_v21_payload_6a2.txt",
+              "playoff_v21_payload_6b.txt",
+              "playoff_v21_payload_7.txt",
+              "playoff_v21_payload_8.txt",
+          ]
+          playoff_payload = "".join(
+              Path(name).read_text(encoding="utf-8").strip()
+              for name in playoff_parts
+          )
+          if len(playoff_payload) != 58476:
+              raise SystemExit(f"Unexpected PLAY OFF v2.1 payload length: {len(playoff_payload)}")
+
+          playoff_html = gzip.decompress(base64.b64decode(playoff_payload))
+          if len(playoff_html) != 149170:
+              raise SystemExit(f"Unexpected PLAY OFF v2.1 HTML size: {len(playoff_html)}")
+
+          playoff_sha = hashlib.sha256(playoff_html).hexdigest()
+          if playoff_sha != "2a5c5da0eea41774369e7895b64afc2e7d229e3013282cd681546921349f4f88":
+              raise SystemExit(f"Unexpected PLAY OFF v2.1 SHA256: {playoff_sha}")
+
+          save_key = b"happyLeaguePlayoffV21"
+          if playoff_html.count(save_key) != 1:
+              raise SystemExit("Unexpected PLAY OFF v2.1 save-key occurrence count")
+
+          playoff_dir = out / "playoff"
+          playoff_dir.mkdir(parents=True, exist_ok=True)
+          (playoff_dir / "index.html").write_bytes(playoff_html)
+          print("Built PLAY OFF v2.1 site with isolated saves:", len(playoff_html), "bytes")
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
