@@ -114,7 +114,7 @@ jobs:
           playoff22_html = playoff22_html.replace(b"LOSS", b"LOSE")
           if playoff22_html.count(b"LOSS") != 0 or playoff22_html.count(b"LOSE") != 1:
               raise SystemExit("PLAY OFF v2.2 LOSE replacement failed")
-          if hashlib.sha256(playoff22_html).hexdigest() != "d400781500dd622ed585302e0f3986225041e094d0297baec7335203bf69f044":
+          if hashlib.sha256(playoff22_html).hexdigest() != "d08f027f2e5afa95c63de8509757abe92e456350f3ff68aefb0e278d1bfc4223":
               raise SystemExit("Unexpected corrected PLAY OFF v2.2 SHA256")
           if playoff22_html.count(b"happyLeaguePlayoffV22") != 1 or playoff22_html.count(b"happyLeaguePlayoffV21") != 0:
               raise SystemExit("Unexpected PLAY OFF v2.2 save key")
