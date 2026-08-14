@@ -169,6 +169,49 @@ jobs:
           (playoff_dir / "index.html").write_bytes(playoff_html)
           print("Built PLAY OFF v2.1 site with isolated saves:", len(playoff_html), "bytes")
 
+          # Build PLAY OFF v2.2 independently under /playoff22/. Existing sites stay unchanged.
+          playoff22_parts = [
+              "playoff_v22_payload_01.txt",
+              "playoff_v22_payload_02.txt",
+              "playoff_v22_payload_03.txt",
+              "playoff_v22_payload_04.txt",
+              "playoff_v22_payload_05.txt",
+              "playoff_v22_payload_06.txt",
+              "playoff_v22_payload_07.txt",
+              "playoff_v22_payload_08.txt",
+              "playoff_v22_payload_09.txt",
+              "playoff_v22_payload_10.txt",
+              "playoff_v22_payload_11_1.txt",
+              "playoff_v22_payload_11_2.txt",
+              "playoff_v22_payload_12_1.txt",
+              "playoff_v22_payload_12_2.txt",
+          ]
+          playoff22_payload = "".join(
+              Path(name).read_text(encoding="utf-8").strip()
+              for name in playoff22_parts
+          )
+          if len(playoff22_payload) != 58480:
+              raise SystemExit(f"Unexpected PLAY OFF v2.2 payload length: {len(playoff22_payload)}")
+
+          playoff22_html = gzip.decompress(base64.b64decode(playoff22_payload))
+          if len(playoff22_html) != 149170:
+              raise SystemExit(f"Unexpected PLAY OFF v2.2 HTML size: {len(playoff22_html)}")
+
+          playoff22_sha = hashlib.sha256(playoff22_html).hexdigest()
+          if playoff22_sha != "c5bde37b98ccb5e7138306c732d16a72eae34ec47ba6dabbca2e5ca2776d4602":
+              raise SystemExit(f"Unexpected PLAY OFF v2.2 SHA256: {playoff22_sha}")
+
+          save_key = b"happyLeaguePlayoffV22"
+          if playoff22_html.count(save_key) != 1:
+              raise SystemExit("Unexpected PLAY OFF v2.2 save-key occurrence count")
+          if playoff22_html.count(b"happyLeaguePlayoffV21") != 0:
+              raise SystemExit("PLAY OFF v2.2 still contains the v2.1 save key")
+
+          playoff22_dir = out / "playoff22"
+          playoff22_dir.mkdir(parents=True, exist_ok=True)
+          (playoff22_dir / "index.html").write_bytes(playoff22_html)
+          print("Built PLAY OFF v2.2 site with isolated saves:", len(playoff22_html), "bytes")
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
