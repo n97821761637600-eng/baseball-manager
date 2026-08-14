@@ -28,189 +28,99 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-          import re, base64, gzip
+          import re, base64, gzip, hashlib
 
-          # Keep the existing completed site at the root URL exactly as before.
+          out = Path("_site")
+          out.mkdir(exist_ok=True)
+
+          # Keep the existing completed root site exactly as before.
           src = Path("index.html").read_text(encoding="utf-8")
           m = re.search(r'atob\("([A-Za-z0-9+/=]+)"\)', src)
           if not m:
               raise SystemExit("Embedded game payload not found")
-
           broken = m.group(1)
           prefix = broken[:-4]
-          tail = (
-              Path("payload_tail_1.txt").read_text(encoding="utf-8").strip()
-              + Path("payload_tail_2.txt").read_text(encoding="utf-8").strip()
-              + Path("payload_tail_3.txt").read_text(encoding="utf-8").strip()
-          )
+          tail = "".join(Path(f"payload_tail_{i}.txt").read_text(encoding="utf-8").strip() for i in range(1, 4))
           payload = prefix + tail
           if len(payload) != 50708:
               raise SystemExit(f"Unexpected payload length: {len(payload)}")
-
           html_bytes = gzip.decompress(base64.b64decode(payload))
           if len(html_bytes) != 133619:
               raise SystemExit(f"Unexpected HTML size: {len(html_bytes)}")
-
-          out = Path("_site")
-          out.mkdir(exist_ok=True)
           (out / "index.html").write_bytes(html_bytes)
-          print("Built existing root site:", len(html_bytes), "bytes")
 
-          # Build v3.7 independently under /v37/ so the existing site is not overwritten.
-          v37_payload = "".join(
-              Path(f"v37_payload_{i}.txt").read_text(encoding="utf-8").strip()
-              for i in range(1, 7)
-          )
-          if len(v37_payload) != 53564:
-              raise SystemExit(f"Unexpected v3.7 payload length: {len(v37_payload)}")
+          def build_version(names, payload_len, html_len, out_dir, old_key=None, new_key=None):
+              payload = "".join(Path(name).read_text(encoding="utf-8").strip() for name in names)
+              if len(payload) != payload_len:
+                  raise SystemExit(f"Unexpected payload length for {out_dir}: {len(payload)}")
+              html = gzip.decompress(base64.b64decode(payload))
+              if len(html) != html_len:
+                  raise SystemExit(f"Unexpected HTML size for {out_dir}: {len(html)}")
+              if old_key is not None:
+                  occurrences = html.count(old_key)
+                  if occurrences != 3:
+                      raise SystemExit(f"Unexpected save-key occurrence count for {out_dir}: {occurrences}")
+                  html = html.replace(old_key, new_key)
+              d = out / out_dir
+              d.mkdir(parents=True, exist_ok=True)
+              (d / "index.html").write_bytes(html)
+              return html
 
-          v37_html = gzip.decompress(base64.b64decode(v37_payload))
-          if len(v37_html) != 141011:
-              raise SystemExit(f"Unexpected v3.7 HTML size: {len(v37_html)}")
+          # Existing v3.7, v3.9 and v3.12 sites remain unchanged.
+          build_version([f"v37_payload_{i}.txt" for i in range(1, 7)], 53564, 141011, "v37", b"baseballCoachV1", b"baseballCoachV7")
+          build_version([f"v39_payload_{i}.txt" for i in range(1, 8)], 54420, 142659, "v39", b"baseballCoachV1", b"baseballCoachV9")
+          build_version([f"v312_payload_{i}.txt" for i in range(1, 8)], 56096, 147196, "happyleague", b"baseballCoachV1", b"baseballCoachV312")
 
-          old_key = b"baseballCoachV1"
-          new_key = b"baseballCoachV7"
-          occurrences = v37_html.count(old_key)
-          if occurrences != 3:
-              raise SystemExit(f"Unexpected save-key occurrence count: {occurrences}")
-          v37_html = v37_html.replace(old_key, new_key)
-
-          v37_dir = out / "v37"
-          v37_dir.mkdir(parents=True, exist_ok=True)
-          (v37_dir / "index.html").write_bytes(v37_html)
-          print("Built v3.7 site with isolated saves:", len(v37_html), "bytes")
-
-          # Build v3.9 independently under /v39/. The root and /v37/ sites stay unchanged.
-          v39_payload = "".join(
-              Path(f"v39_payload_{i}.txt").read_text(encoding="utf-8").strip()
-              for i in range(1, 8)
-          )
-          if len(v39_payload) != 54420:
-              raise SystemExit(f"Unexpected v3.9 payload length: {len(v39_payload)}")
-
-          v39_html = gzip.decompress(base64.b64decode(v39_payload))
-          if len(v39_html) != 142659:
-              raise SystemExit(f"Unexpected v3.9 HTML size: {len(v39_html)}")
-
-          old_key = b"baseballCoachV1"
-          new_key = b"baseballCoachV9"
-          occurrences = v39_html.count(old_key)
-          if occurrences != 3:
-              raise SystemExit(f"Unexpected v3.9 save-key occurrence count: {occurrences}")
-          v39_html = v39_html.replace(old_key, new_key)
-
-          v39_dir = out / "v39"
-          v39_dir.mkdir(parents=True, exist_ok=True)
-          (v39_dir / "index.html").write_bytes(v39_html)
-          print("Built v3.9 site with isolated saves:", len(v39_html), "bytes")
-
-          # Build v3.12 independently under /happyleague/. Existing sites stay unchanged.
-          v312_payload = "".join(
-              Path(f"v312_payload_{i}.txt").read_text(encoding="utf-8").strip()
-              for i in range(1, 8)
-          )
-          if len(v312_payload) != 56096:
-              raise SystemExit(f"Unexpected v3.12 payload length: {len(v312_payload)}")
-
-          v312_html = gzip.decompress(base64.b64decode(v312_payload))
-          if len(v312_html) != 147196:
-              raise SystemExit(f"Unexpected v3.12 HTML size: {len(v312_html)}")
-
-          old_key = b"baseballCoachV1"
-          new_key = b"baseballCoachV312"
-          occurrences = v312_html.count(old_key)
-          if occurrences != 3:
-              raise SystemExit(f"Unexpected v3.12 save-key occurrence count: {occurrences}")
-          v312_html = v312_html.replace(old_key, new_key)
-
-          v312_dir = out / "happyleague"
-          v312_dir.mkdir(parents=True, exist_ok=True)
-          (v312_dir / "index.html").write_bytes(v312_html)
-          print("Built v3.12 happyleague site with isolated saves:", len(v312_html), "bytes")
-
-          # Build PLAY OFF v2.1 independently under /playoff/. Existing sites stay unchanged.
-          import hashlib
+          # Existing PLAY OFF v2.1 remains unchanged at /playoff/.
           playoff_parts = [
-              "playoff_v21_payload_1.txt",
-              "playoff_v21_payload_2.txt",
-              "playoff_v21_payload_3.txt",
-              "playoff_v21_payload_4.txt",
-              "playoff_v21_payload_5.txt",
-              "playoff_v21_payload_6a1a1.txt",
-              "playoff_v21_payload_6a1a2a.txt",
-              "playoff_v21_payload_6a1a2b.txt",
-              "playoff_v21_payload_6a1b.txt",
-              "playoff_v21_payload_6a2.txt",
-              "playoff_v21_payload_6b.txt",
-              "playoff_v21_payload_7.txt",
+              "playoff_v21_payload_1.txt", "playoff_v21_payload_2.txt", "playoff_v21_payload_3.txt",
+              "playoff_v21_payload_4.txt", "playoff_v21_payload_5.txt", "playoff_v21_payload_6a1a1.txt",
+              "playoff_v21_payload_6a1a2a.txt", "playoff_v21_payload_6a1a2b.txt", "playoff_v21_payload_6a1b.txt",
+              "playoff_v21_payload_6a2.txt", "playoff_v21_payload_6b.txt", "playoff_v21_payload_7.txt",
               "playoff_v21_payload_8.txt",
           ]
-          playoff_payload = "".join(
-              Path(name).read_text(encoding="utf-8").strip()
-              for name in playoff_parts
-          )
+          playoff_payload = "".join(Path(name).read_text(encoding="utf-8").strip() for name in playoff_parts)
           if len(playoff_payload) != 58476:
               raise SystemExit(f"Unexpected PLAY OFF v2.1 payload length: {len(playoff_payload)}")
-
           playoff_html = gzip.decompress(base64.b64decode(playoff_payload))
           if len(playoff_html) != 149170:
               raise SystemExit(f"Unexpected PLAY OFF v2.1 HTML size: {len(playoff_html)}")
-
-          playoff_sha = hashlib.sha256(playoff_html).hexdigest()
-          if playoff_sha != "2a5c5da0eea41774369e7895b64afc2e7d229e3013282cd681546921349f4f88":
-              raise SystemExit(f"Unexpected PLAY OFF v2.1 SHA256: {playoff_sha}")
-
-          save_key = b"happyLeaguePlayoffV21"
-          if playoff_html.count(save_key) != 1:
-              raise SystemExit("Unexpected PLAY OFF v2.1 save-key occurrence count")
-
+          if hashlib.sha256(playoff_html).hexdigest() != "2a5c5da0eea41774369e7895b64afc2e7d229e3013282cd681546921349f4f88":
+              raise SystemExit("Unexpected PLAY OFF v2.1 SHA256")
+          if playoff_html.count(b"happyLeaguePlayoffV21") != 1:
+              raise SystemExit("Unexpected PLAY OFF v2.1 save key")
           playoff_dir = out / "playoff"
           playoff_dir.mkdir(parents=True, exist_ok=True)
           (playoff_dir / "index.html").write_bytes(playoff_html)
-          print("Built PLAY OFF v2.1 site with isolated saves:", len(playoff_html), "bytes")
 
-          # Build PLAY OFF v2.2 independently under /playoff22/. Existing sites stay unchanged.
+          # PLAY OFF v2.2 stays at /playoff22/, with only LOSS -> LOSE corrected.
           playoff22_parts = [
-              "playoff_v22_payload_01.txt",
-              "playoff_v22_payload_02.txt",
-              "playoff_v22_payload_03.txt",
-              "playoff_v22_payload_04.txt",
-              "playoff_v22_payload_05.txt",
-              "playoff_v22_payload_06.txt",
-              "playoff_v22_payload_07.txt",
-              "playoff_v22_payload_08.txt",
-              "playoff_v22_payload_09.txt",
-              "playoff_v22_payload_10.txt",
-              "playoff_v22_payload_11_1.txt",
-              "playoff_v22_payload_11_2.txt",
-              "playoff_v22_payload_12_1.txt",
-              "playoff_v22_payload_12_2.txt",
+              "playoff_v22_payload_01.txt", "playoff_v22_payload_02.txt", "playoff_v22_payload_03.txt",
+              "playoff_v22_payload_04.txt", "playoff_v22_payload_05.txt", "playoff_v22_payload_06.txt",
+              "playoff_v22_payload_07.txt", "playoff_v22_payload_08.txt", "playoff_v22_payload_09.txt",
+              "playoff_v22_payload_10.txt", "playoff_v22_payload_11_1.txt", "playoff_v22_payload_11_2.txt",
+              "playoff_v22_payload_12_1.txt", "playoff_v22_payload_12_2.txt",
           ]
-          playoff22_payload = "".join(
-              Path(name).read_text(encoding="utf-8").strip()
-              for name in playoff22_parts
-          )
+          playoff22_payload = "".join(Path(name).read_text(encoding="utf-8").strip() for name in playoff22_parts)
           if len(playoff22_payload) != 58480:
               raise SystemExit(f"Unexpected PLAY OFF v2.2 payload length: {len(playoff22_payload)}")
-
           playoff22_html = gzip.decompress(base64.b64decode(playoff22_payload))
           if len(playoff22_html) != 149170:
               raise SystemExit(f"Unexpected PLAY OFF v2.2 HTML size: {len(playoff22_html)}")
-
-          playoff22_sha = hashlib.sha256(playoff22_html).hexdigest()
-          if playoff22_sha != "c5bde37b98ccb5e7138306c732d16a72eae34ec47ba6dabbca2e5ca2776d4602":
-              raise SystemExit(f"Unexpected PLAY OFF v2.2 SHA256: {playoff22_sha}")
-
-          save_key = b"happyLeaguePlayoffV22"
-          if playoff22_html.count(save_key) != 1:
-              raise SystemExit("Unexpected PLAY OFF v2.2 save-key occurrence count")
-          if playoff22_html.count(b"happyLeaguePlayoffV21") != 0:
-              raise SystemExit("PLAY OFF v2.2 still contains the v2.1 save key")
-
+          if hashlib.sha256(playoff22_html).hexdigest() != "c5bde37b98ccb5e7138306c732d16a72eae34ec47ba6dabbca2e5ca2776d4602":
+              raise SystemExit("Unexpected original PLAY OFF v2.2 SHA256")
+          if playoff22_html.count(b"LOSS") != 1:
+              raise SystemExit(f"Unexpected LOSS count: {playoff22_html.count(b'LOSS')}")
+          playoff22_html = playoff22_html.replace(b"LOSS", b"LOSE")
+          if playoff22_html.count(b"LOSS") != 0 or playoff22_html.count(b"LOSE") != 1:
+              raise SystemExit("PLAY OFF v2.2 LOSE replacement failed")
+          if hashlib.sha256(playoff22_html).hexdigest() != "d400781500dd622ed585302e0f3986225041e094d0297baec7335203bf69f044":
+              raise SystemExit("Unexpected corrected PLAY OFF v2.2 SHA256")
+          if playoff22_html.count(b"happyLeaguePlayoffV22") != 1 or playoff22_html.count(b"happyLeaguePlayoffV21") != 0:
+              raise SystemExit("Unexpected PLAY OFF v2.2 save key")
           playoff22_dir = out / "playoff22"
           playoff22_dir.mkdir(parents=True, exist_ok=True)
           (playoff22_dir / "index.html").write_bytes(playoff22_html)
-          print("Built PLAY OFF v2.2 site with isolated saves:", len(playoff22_html), "bytes")
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
